@@ -66,6 +66,14 @@ test('privacy: scripts, styles and fonts are all loaded from this site', () => {
   eq(external, []);
 });
 
+test('theme: the page opens in the system theme before first paint, and the choice is never stored', () => {
+  const html = read('index.html');
+  const init = read('js/theme-init.js');
+  ok(/prefers-color-scheme:\s*dark/.test(init) && /data-theme/.test(init), 'theme-init.js should read the system setting');
+  ok(html.indexOf('js/theme-init.js') > 0 && html.indexOf('js/theme-init.js') < html.indexOf('css/theme.css'), 'theme-init.js must load before the stylesheet');
+  ok(/prefers-color-scheme:\s*dark/.test(read('js/main.js')), 'main.js should follow the system setting');
+});
+
 test('privacy: nothing that looks like a user file is committed to a public repo', () => {
   const ignore = read('.gitignore');
   for (const pat of ['*.pdf', '*.zip', '*.png', '*.jpg']) ok(ignore.split(/\r?\n/).includes(pat), '.gitignore should list ' + pat);

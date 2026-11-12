@@ -4,6 +4,8 @@ Free PDF tools that run **entirely in your browser**. Organize, combine, split, 
 fill forms, convert to and from pictures, and pull out text. **Your files are never uploaded, stored or tracked.**
 
 Open `index.html` through any web server (or GitHub Pages) and it works. There is no account, no install and no build step.
+It opens in light or dark to match your computer's setting, and follows it if you change it while the page is open
+(the sun/moon button overrides that for the current visit only).
 
 ## Privacy, and how it is enforced
 

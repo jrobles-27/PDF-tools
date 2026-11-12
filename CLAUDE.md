@@ -58,6 +58,10 @@ checks use the browser's network log: it must show only `GET`s to this origin an
 
 ## Gotchas
 
+- **Theme:** `js/theme-init.js` sets `data-theme` from the system setting before first paint (it must stay an external file
+  loaded before the stylesheets, because the CSP forbids inline scripts), and `js/main.js` follows later system changes until
+  the user presses the toggle. Never persist the choice. In the built-in browser, media-query change events only fire once
+  a frame is rendered (take a screenshot to force one).
 - **pdf-lib's minified build mangles class names**: use `instanceof PDFLib.PDFTextField` etc., never `constructor.name`.
 - pdf-lib compresses page content streams: to test drawn text, inflate the stream (see `contentOf` in `tests/core.test.js`).
 - pdf.js: `page.cleanup()` on a shared page cancels other renders of it; don't call it. The document has no `.destroy()`; use

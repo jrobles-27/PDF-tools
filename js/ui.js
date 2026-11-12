@@ -323,6 +323,7 @@
       document.documentElement.setAttribute('data-theme', t);
       $('#theme').innerHTML = I(t === 'dark' ? 'sun' : 'moon');
     };
+    S.setTheme = setTheme;
     setTheme(cfg.theme || 'light');
     $('#theme').addEventListener('click', function () {
       setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
@@ -396,6 +397,7 @@
     matrix: matrix, pivot: pivot, pct: pct, tableTools: tableTools, tstate: tstate,
     barChart: barChart, donut: donut, themeColors: themeColors,
     start: start, refresh: refresh, go: go, setState: setState, onRender: fn => hooks.push(fn),
+    setTheme: t => { if (S.setTheme) S.setTheme(t); },
     page: function () { return S.page; }
   };
 })(window);
