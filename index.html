@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Privacy is enforced here, not just promised. default-src 'none' blocks everything not listed. connect-src 'self'
+     means the page can only ever request files from its own host (pdf.js loads its fonts and worker that way); it
+     cannot send anything to any other server. There is no form, no third-party script, no analytics, no cookie and no
+     browser storage. tests/privacy.test.js fails if any of that changes. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Free PDF tools that run entirely in your browser: organize, combine, split, annotate, sign, convert and more. Your files are never uploaded.">
+<title>PDF Tools · private, in your browser</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b6cf6'/%3E%3Cpath d='M10 7h8l5 5v13H10z' fill='none' stroke='white' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M18 7v5h5M13 18h7M13 22h5' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo" id="logo"></div>
+      <div><div class="name">PDF Tools</div><div class="sub">Private · in your browser</div></div>
+    </div>
+    <button class="collapse-btn" id="collapse" aria-label="Collapse sidebar"></button>
+    <nav id="nav" aria-label="Tools"></nav>
+    <div class="side-foot">
+      <div class="ic" id="footIc"></div>
+      <div class="txt"><b>Nothing is uploaded</b>Your files stay in this browser tab and are gone when you close it.</div>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn icon ghost" id="menuBtn" aria-label="Menu"></button>
+      <div class="search">
+        <span id="searchIc"></span>
+        <input id="search" placeholder="Jump to a tool..." autocomplete="off" aria-label="Jump to a tool">
+        <kbd>/</kbd>
+        <div class="search-results" id="searchRes"></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="pill-state"><span class="dot" id="stateDot"></span><span id="stateTxt">No PDF open</span></div>
+      <div class="sep"></div>
+      <button class="btn icon ghost" id="theme" aria-label="Toggle light or dark theme"></button>
+      <button class="btn primary" id="primaryBtn"></button>
+    </header>
+    <main class="content" id="page"></main>
+  </div>
+</div>
+<input type="file" id="filePicker" hidden>
+<div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+<div id="work" class="work" hidden><div class="spin"></div><span id="workTxt">Working…</span></div>
+<noscript><p style="padding:24px;font-family:sans-serif">PDF Tools needs JavaScript. It runs entirely in your browser, so nothing is sent anywhere.</p></noscript>
+
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="js/core/exif.js"></script>
+<script src="js/core/ranges.js"></script>
+<script src="js/core/zip.js"></script>
+<script src="js/core/pdfops.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app-core.js"></script>
+<script src="js/pages/open.js"></script>
+<script src="js/pages/organize.js"></script>
+<script src="js/pages/combine.js"></script>
+<script src="js/pages/annotate.js"></script>
+<script src="js/pages/stamp.js"></script>
+<script src="js/pages/crop.js"></script>
+<script src="js/pages/forms.js"></script>
+<script src="js/pages/info.js"></script>
+<script src="js/pages/toimg.js"></script>
+<script src="js/pages/fromimg.js"></script>
+<script src="js/pages/text.js"></script>
+<script src="js/pages/privacy.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

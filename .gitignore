@@ -1,0 +1,17 @@
+# This repository is public and GitHub Pages publishes whatever is committed.
+# Never commit anyone's documents: a stray test file here would be published.
+*.pdf
+*.zip
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.heic
+*.txt
+!robots.txt
+
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+test-output/

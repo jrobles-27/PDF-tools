@@ -1,0 +1,10 @@
+{
+  "name": "pdf-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, in-browser PDF tools. No uploads, no tracking.",
+  "scripts": {
+    "test": "node tests/run.js",
+    "serve": "node tests/serve.js"
+  }
+}
