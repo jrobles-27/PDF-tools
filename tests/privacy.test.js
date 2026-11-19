@@ -54,9 +54,24 @@ test('privacy: the page declares a strict content security policy', () => {
   eq(csp['object-src'], ["'none'"]);
   eq(csp['base-uri'], ["'none'"]);
   ok(!/https?:/.test(m[1]), 'CSP must not allow any other host');
-  ok(csp['script-src'].every(s => /^'self'$|^'wasm-unsafe-eval'$/.test(s)), 'script-src may only be self (and wasm for pdf.js): ' + csp['script-src']);
+  ok(csp['script-src'].every(s => /^'self'$|^'wasm-unsafe-eval'$|^'sha256-[A-Za-z0-9+/=]+'$/.test(s)), 'script-src may only be self, wasm for pdf.js, and exact hashes: ' + csp['script-src']);
+  // every inline script must be exactly one the policy has a hash for, and no more than the one theme line
+  const crypto = require('crypto');
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  eq(inline.length, 1, 'only the one-line theme script may be inline');
+  const hash = "'sha256-" + crypto.createHash('sha256').update(inline[0], 'utf8').digest('base64') + "'";
+  ok(csp['script-src'].includes(hash), 'the inline script does not match the hash in the policy (expected ' + hash + ')');
+  ok(!/https?:|fetch|storage|cookie/i.test(inline[0]), 'the inline script must not touch the network or storage');
   ok(!/unsafe-eval'/.test(m[1].replace("'wasm-unsafe-eval'", '')), 'no unsafe-eval');
   ok(/name="referrer"\s+content="no-referrer"/.test(html), 'referrer policy');
+});
+
+test('performance: app scripts are deferred, so the browser fetches them all at once (not one after another)', () => {
+  const html = read('index.html');
+  const tags = [...html.matchAll(/<script[^>]*\bsrc="[^"]+"[^>]*>/g)].map(m => m[0]);
+  ok(tags.length > 5, 'expected the app scripts');
+  const blocking = tags.filter(t => !/\bdefer\b/.test(t));
+  eq(blocking, [], 'every external script must have defer; a blocking one makes the rest download in a queue');
 });
 
 test('privacy: scripts, styles and fonts are all loaded from this site', () => {
@@ -68,9 +83,9 @@ test('privacy: scripts, styles and fonts are all loaded from this site', () => {
 
 test('theme: the page opens in the system theme before first paint, and the choice is never stored', () => {
   const html = read('index.html');
-  const init = read('js/theme-init.js');
-  ok(/prefers-color-scheme:\s*dark/.test(init) && /data-theme/.test(init), 'theme-init.js should read the system setting');
-  ok(html.indexOf('js/theme-init.js') > 0 && html.indexOf('js/theme-init.js') < html.indexOf('css/theme.css'), 'theme-init.js must load before the stylesheet');
+  const at = html.indexOf('prefers-color-scheme: dark');
+  ok(at > 0 && at < html.indexOf('css/theme.css'), 'the inline theme script must run before the stylesheet');
+  ok(/data-theme/.test(html.slice(at, at + 200)), 'the inline theme script should set data-theme');
   ok(/prefers-color-scheme:\s*dark/.test(read('js/main.js')), 'main.js should follow the system setting');
 });
 

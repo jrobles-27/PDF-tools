@@ -13,7 +13,7 @@ Your PDFs and pictures are read by your own browser, worked on in its memory, an
 refreshing the tab erases everything. This is enforced in the code, not just promised:
 
 - **A strict Content-Security-Policy** (the first thing in `index.html`) lets the page load scripts, styles and files only
-  from its own site, and send requests only to its own host (`connect-src 'self'`; pdf.js needs that to read its bundled
+  from its own site (plus one tiny inline line that picks light or dark, allowed by its exact hash), and send requests only to its own host (`connect-src 'self'`; pdf.js needs that to read its bundled
   fonts). There is no way for it to send anything to another server.
 - **No cookies, no `localStorage`, `sessionStorage`, IndexedDB, Cache API or service workers.** Even the light/dark choice
   is not remembered.

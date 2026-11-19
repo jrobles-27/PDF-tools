@@ -58,10 +58,15 @@ checks use the browser's network log: it must show only `GET`s to this origin an
 
 ## Gotchas
 
-- **Theme:** `js/theme-init.js` sets `data-theme` from the system setting before first paint (it must stay an external file
-  loaded before the stylesheets, because the CSP forbids inline scripts), and `js/main.js` follows later system changes until
-  the user presses the toggle. Never persist the choice. In the built-in browser, media-query change events only fire once
-  a frame is rendered (take a screenshot to force one).
+- **Theme:** a one-line inline script in `index.html` sets `data-theme` from the system setting before first paint (inline so it
+  costs no extra request); the CSP allows exactly that script by its `sha256`. **If you edit that line, update the hash in the
+  CSP** (`node tests/run.js` prints the expected value). `js/main.js` follows later system changes until the user presses the
+  toggle. Never persist the choice. In the built-in browser, media-query change events only fire once a frame is rendered
+  (take a screenshot to force one).
+- **Load speed:** every external `<script>` must have `defer` (a test enforces it). Without it, the browser fetches scripts one
+  after another; on a connection that inspects traffic (e.g. Avast Web Shield, ~0.3 s per request) that took 10 to 14 s.
+  Keep the request count low, and keep pdf.js out of the startup path (it loads only when a PDF is opened). To reproduce slow
+  connections locally: `LATENCY=300 node tests/serve.js 8091` and read `performance.getEntriesByType('navigation')`.
 - **pdf-lib's minified build mangles class names**: use `instanceof PDFLib.PDFTextField` etc., never `constructor.name`.
 - pdf-lib compresses page content streams: to test drawn text, inflate the stream (see `contentOf` in `tests/core.test.js`).
 - pdf.js: `page.cleanup()` on a shared page cancels other renders of it; don't call it. The document has no `.destroy()`; use

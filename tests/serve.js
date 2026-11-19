@@ -7,6 +7,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const port = Number(process.argv[2]) || 8080;
 const extra = process.env.TESTDATA ? path.resolve(process.env.TESTDATA) : null;
+const latency = Number(process.env.LATENCY) || 0;
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.wasm': 'application/wasm', '.json': 'application/json', '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
 
 http.createServer(function (req, res) {
@@ -18,7 +19,10 @@ http.createServer(function (req, res) {
   if (!file.startsWith(base)) { res.writeHead(403).end(); return; }
   fs.readFile(file, function (err, data) {
     if (err) { res.writeHead(404).end('Not found'); return; }
-    res.writeHead(200, { 'Content-Type': types[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
-    res.end(data);
+    // LATENCY=300 adds a delay (ms) to every response, to see how the page behaves on a slow or inspected connection.
+    setTimeout(function () {
+      res.writeHead(200, { 'Content-Type': types[path.extname(file).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+      res.end(data);
+    }, latency);
   });
 }).listen(port, '127.0.0.1', () => console.log('Serving ' + root + ' at http://127.0.0.1:' + port + '/'));
