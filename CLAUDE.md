@@ -21,7 +21,9 @@ separate code). Design follows the `dashboard-ui` skill (Zenith theme); keep to 
 2. **Never commit anyone's documents.** `.gitignore` blocks `*.pdf`, images and ZIPs because GitHub Pages publishes whatever
    is committed. Keep test files outside the repo (use `TESTDATA=<folder> node tests/serve.js`).
 3. **Pages are copied, never re-rendered or re-compressed**, and the source bytes are never modified. Operations return new
-   bytes. Output carries no producer, creator or dates unless the user sets them.
+   bytes. Output carries no producer, creator or dates unless the user sets them. The only lossy operation is **Compress**
+   (Balanced/Smallest shrink JPEG photos): it must say so in the UI, replace a photo only when it gets clearly smaller
+   (`MIN_GAIN`), and never return a file larger than the input. Never add a silent lossy step anywhere else.
 4. **Be honest in the UI about hiding vs deleting.** Crop, white-out and watermark do not remove content. Don't add a
    "redact" feature that only draws black boxes.
 5. **Don't push or publish on the user's behalf.** Pushing to GitHub makes the site public. Commit/push only when asked.
@@ -36,6 +38,21 @@ separate code). Design follows the `dashboard-ui` skill (Zenith theme); keep to 
   `UI.onRender`).
 - `css/theme.css` is the skill's theme, unchanged. `css/app.css` adds our styles using only theme tokens (plus `--paper` for
   the white a PDF page is drawn on).
+
+## Passwords and compression (qpdf)
+
+- `js/core/qpdf.js` drives qpdf (WebAssembly, `vendor/qpdf/`); `js/core/compress.js` shrinks JPEGs through an **injected codec**
+  (`Engine.jpegCodec` in the browser, a fake one in tests) and then runs qpdf's lossless pass. `Engine.qpdf()` loads
+  `vendor/qpdf/qpdf.js` lazily with a script tag (kept off the startup path) and reuses one instance.
+- **Passwords never leave memory**: never log them, store them, put them in a URL, or keep them in state longer than needed
+  (`protect.js` clears them after use). There is deliberately **no password guessing/cracking** feature. Decrypted bytes
+  exist only in the open tab; the original file is never changed.
+- qpdf facts learned the hard way: the wasm **ignores a `print` option**, so output is captured with `FS.init(null, sink, sink)`
+  in `preRun`; `--requires-password` returns 2 with "invalid password" in the log (not 0) for a locked file, 3 for
+  owner-only; a wrong password is detected from the log text, not the exit code alone; the `.wasm` fetch is covered by
+  `connect-src 'self'` and `'wasm-unsafe-eval'` (do not widen the CSP for it).
+- `tests/protect.test.js` uses the real qpdf; the compression tests use a fake codec (padded 1×1 JPEGs), and real encoding
+  was checked in a browser (a 3 MB photo PDF went to 0.5 MB / 0.1 MB with colours intact).
 
 ## Adding a tool
 

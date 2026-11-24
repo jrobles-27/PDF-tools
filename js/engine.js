@@ -160,12 +160,57 @@
     return new Uint8Array(await blob.arrayBuffer());
   }
 
+  // ---------- qpdf (password protection and lossless tidy-up) ----------
+  // Loaded only when first needed, from this site's own vendor/ folder. It runs in this tab; nothing is sent anywhere.
+  let qpdfLoad = null;
+  function qpdfModule() {
+    if (!qpdfLoad) {
+      qpdfLoad = new Promise(function (resolve, reject) {
+        const s = document.createElement('script');
+        s.src = new URL('vendor/qpdf/qpdf.js', document.baseURI).href;
+        s.onload = () => resolve(root.Module);
+        s.onerror = () => { qpdfLoad = null; reject(new Error('Could not load the password tool. Check your connection and try again.')); };
+        document.head.appendChild(s);
+      });
+    }
+    return qpdfLoad;
+  }
+  let qpdfApi = null;
+  function qpdf() {
+    if (!qpdfApi) {
+      const wasm = new URL('vendor/qpdf/qpdf.wasm', document.baseURI).href;
+      qpdfApi = Qpdf.create(async o => (await qpdfModule())({ locateFile: () => wasm, preRun: o.preRun }));
+    }
+    return qpdfApi;
+  }
+
+  /** Shrinks one JPEG picture with the browser's own decoder and encoder. Returns null to leave the picture alone. */
+  async function jpegCodec(bytes, o) {
+    const turned = Exif.orientation(bytes) !== 1;
+    let bmp;
+    try { bmp = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }), turned ? { imageOrientation: 'none' } : undefined); }
+    catch (e) { return null; }
+    try {
+      if (bmp.width !== o.sourceWidth || bmp.height !== o.sourceHeight) return null;     // not the picture the PDF describes
+      const canvas = document.createElement('canvas');
+      canvas.width = o.width; canvas.height = o.height;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, o.width, o.height);
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(bmp, 0, 0, o.width, o.height);
+      const blob = await toBlob(canvas, 'image/jpeg', o.quality);
+      canvas.width = 0;
+      return { bytes: new Uint8Array(await blob.arrayBuffer()), width: o.width, height: o.height };
+    } finally { bmp.close(); }
+  }
+
   const fmtSize = n => (n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
   root.Engine = {
     openPdf: openPdf, closePdf: closePdf, render: render, toBlob: toBlob, thumb: thumb, pageText: pageText, queue: queue,
     chooseFiles: chooseFiles, readBytes: readBytes, download: download, stem: stem, safeName: safeName, uniqueNames: uniqueNames,
-    imageKind: imageKind, imageToPng: imageToPng, fmtSize: fmtSize, plural: plural
+    qpdf: qpdf, jpegCodec: jpegCodec, imageKind: imageKind, imageToPng: imageToPng, fmtSize: fmtSize, plural: plural
   };
 })(window);

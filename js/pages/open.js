@@ -36,6 +36,24 @@
     });
   };
   App.acts['open.close'] = function () { Doc.close(); UI.refresh(); };
+  App.acts['open.unlock'] = async function () {
+    const box = document.getElementById('unlockPw');
+    const pw = box ? box.value : '';
+    await App.unlock(pw);
+    const again = document.getElementById('unlockPw');       // wrong password: the prompt is still there, so try again
+    if (again) { again.value = ''; again.focus(); }
+  };
+  App.acts['open.unlockCancel'] = function () { App.locked = null; UI.refresh(); };
+
+  function lockedCard() {
+    const l = App.locked;
+    return card('This PDF is locked', 'Enter the password to open ' + l.name + '. The password is used inside this tab only and is not stored.',
+      '<div class="row wrap" style="gap:8px;align-items:flex-end"><div class="field grow" style="min-width:220px"><label for="unlockPw">Password</label>' +
+      '<input id="unlockPw" class="txt" type="password" autocomplete="off" spellcheck="false"></div>' +
+      '<button class="btn primary" data-act="open.unlock">' + I('unlock') + ' Unlock and open</button>' +
+      '<button class="btn ghost" data-act="open.unlockCancel">Cancel</button></div>' +
+      '<p class="hint">Forgot it? There is no way to recover it. This tool does not try to guess or break passwords.</p>');
+  }
 
   function tiles() {
     const tools = App.pages.filter(p => p.blurb).sort((a, b) => a.order - b.order);
@@ -62,11 +80,16 @@
         '<div><b>' + E.fmtSize(d.size) + '</b>size</div><div><b id="openPageSize">…</b>first page</div></div>' +
         '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn primary" data-go="organize">' + I('grid') + ' Organize pages</button>' +
         '<button class="btn" data-act="open.close">' + I('trash') + ' Close this PDF</button></div>') : '';
-      return privacy + card('Choose your file', '', '<div style="padding-top:2px">' + drop + '</div>') + summary +
+      return privacy + (App.locked ? lockedCard() : '') + card('Choose your file', '', '<div style="padding-top:2px">' + drop + '</div>') + summary +
         '<div class="page-head" style="margin-top:8px"><h1 style="font-size:18px">What you can do</h1></div>' + tiles();
     },
 
     mount: function () {
+      const pw = document.getElementById('unlockPw');
+      if (pw) {
+        pw.focus();
+        pw.addEventListener('keydown', function (e) { if (e.key === 'Enter') App.acts['open.unlock'](); });
+      }
       const d = Doc.cur;
       const el = document.getElementById('openPageSize');
       if (!d || !el) return;

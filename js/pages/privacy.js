@@ -9,7 +9,7 @@
     const does = card('What happens to your file', '',
       '<ol class="how-list">' +
       '<li><b>You choose a file.</b> The browser lets this page read it. It is not copied to any server.</li>' +
-      '<li><b>It is processed on your computer</b>, using two open-source libraries (<i>pdf-lib</i> and <i>pdf.js</i>) that are bundled with the page, not fetched from elsewhere.</li>' +
+      '<li><b>It is processed on your computer</b>, using three open-source libraries (<i>pdf-lib</i>, <i>pdf.js</i> and <i>qpdf</i>, which does the passwords) that are bundled with the page, not fetched from elsewhere.</li>' +
       '<li><b>The result is a download.</b> It goes to your own Downloads folder like any other file.</li>' +
       '<li><b>It is forgotten.</b> Everything is held in this tab’s memory. Closing or refreshing the tab erases it. Nothing is written to cookies, local storage, or a database.</li></ol>');
 

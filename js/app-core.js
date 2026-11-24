@@ -34,7 +34,10 @@
     x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     chevL: '<path d="m15 18-6-6 6-6"/>',
     chevR: '<path d="m9 18 6-6-6-6"/>',
-    eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'
+    eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+    unlock: '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+    shrink: '<path d="m15 15 6 6"/><path d="m15 9 6-6"/><path d="M21 16v5h-5"/><path d="M21 8V3h-5"/><path d="M3 16v5h5"/><path d="m3 21 6-6"/><path d="M3 8V3h5"/><path d="M9 9 3 3"/>',
+    key: '<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>'
   });
 
   // ---------- tiny helpers ----------
@@ -200,13 +203,46 @@
     else App.openFiles(files);
   });
 
-  /** Open the first PDF among the files. */
+  /** A PDF that needs a password before it can be opened: { name, bytes }. Held in memory until unlocked or cancelled. */
+  App.locked = null;
+
+  /** Open the first PDF among the files. A password-protected one asks for its password first. */
   App.openFiles = async function (files) {
     const f = files.filter(x => /\.pdf$/i.test(x.name) || x.type === 'application/pdf')[0];
     if (!f) return App.toast('That is not a PDF file.', 'error');
     await App.work('Opening ' + f.name + '…', async function () {
-      const doc = await Doc.open(f.name, await E.readBytes(f));
+      const bytes = await E.readBytes(f);
+      if (Qpdf.looksEncrypted(bytes)) {
+        const kind = await E.qpdf().protection(bytes);
+        if (kind === 'open') {
+          App.locked = { name: f.name, bytes: bytes };
+          App.toast('This PDF is locked. Enter its password to open it.', 'info');
+          UI.go('open');
+          return;
+        }
+        if (kind === 'owner') {
+          const doc = await Doc.open(f.name, await E.qpdf().decrypt(bytes, ''));
+          App.toast('Opened ' + doc.name + '. It had editing or printing limits; they are not carried into this working copy.', 'ok');
+          UI.refresh();
+          return;
+        }
+      }
+      App.locked = null;
+      const doc = await Doc.open(f.name, bytes);
       App.toast('Opened ' + doc.name + ' (' + E.plural(doc.pages, 'page') + ').', 'ok');
+      UI.refresh();
+    });
+  };
+
+  /** Try the password for App.locked. A wrong password keeps the prompt open. */
+  App.unlock = async function (password) {
+    const l = App.locked;
+    if (!l) return;
+    await App.work('Unlocking…', async function () {
+      const plain = await E.qpdf().decrypt(l.bytes, password);
+      App.locked = null;
+      const doc = await Doc.open(l.name, plain);
+      App.toast('Unlocked and opened ' + doc.name + '. Your original file is unchanged; what you save from here has no password unless you add one in Password.', 'ok');
       UI.refresh();
     });
   };

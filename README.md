@@ -40,18 +40,28 @@ That is about visiting the page, not about your files. Downloaded files land in 
 | **Crop pages** | Trim margins on all or chosen pages, with a live preview. |
 | **Fill forms** | Fill text fields, checkboxes, drop-downs and choices in fillable PDF forms, optionally making answers permanent. |
 | **Properties** | Edit title, author, dates and more, or strip all metadata before sharing. |
+| **Compress** | Make a PDF smaller: a lossless tidy-up, or also shrink its JPEG photos (Balanced or Smallest). Never returns a larger file. |
+| **Password** | Lock a PDF with a password (AES-256), optionally asking readers not to print, copy or edit; or save an unlocked copy of a PDF you know the password to. A locked PDF also asks for its password when you open it. |
 | **PDF to images** | PNG (lossless), JPEG or WebP at 72 to 600 dpi, as a ZIP. |
 | **Images to PDF** | One picture per page; JPEG and PNG are placed exactly as they are, sideways phone photos are turned upright. |
 | **Extract text** | All the text in a PDF, page by page, as a `.txt` file. |
 
-Pages are copied, never re-rendered or re-compressed, so trimming, combining and splitting lose no quality.
+Pages are copied, never re-rendered or re-compressed, so trimming, combining and splitting lose no quality. The one
+exception is **Compress**, which says so: its Balanced and Smallest settings shrink JPEG photos (lossy), and a photo is
+replaced only if the result is clearly smaller. Its Lossless setting changes nothing visible.
 
 ## Honest limits
 
 - **Hiding is not deleting.** Crop, white-out boxes and watermarks cover content but leave it in the file. To remove
   sensitive material for good, delete the page or convert it to a picture.
 - Page copying (organize, combine, split) does not carry over **bookmarks or form-field data**.
-- **Password-protected PDFs** must be unlocked first. There is **no OCR**: scanned pages have no text to extract.
+- **Passwords:** a locked PDF asks for its password when opened (the password is used in your browser only). There is no
+  password guessing or cracking: forgotten passwords cannot be recovered. The print/copy/edit limits are a courtesy that
+  many programs ignore; the password to open the file (AES-256) is the real protection. A protected PDF has to be
+  unlocked before it can be edited.
+- **Compress** only shrinks pictures stored as JPEG (most photos and scans) and packs the rest. Text, fonts, and pictures
+  in other formats stay as they are, so a mostly-text PDF may barely shrink. Check the result before replacing the original.
+- There is **no OCR**: scanned pages have no text to extract.
 - Added text uses a standard font, so Western European letters work but other scripts do not.
 - Everything is held in memory, so very large PDFs can be slow or fail on small computers.
 - Needs a current browser (Chrome or Edge 111+, Firefox 113+, Safari 16.4+). Built for desktop screens.
@@ -76,11 +86,13 @@ css/theme.css         dashboard theme (light and dark tokens)
 css/app.css           styles for the tools
 js/core/              pure logic, no DOM, runs in the browser and in Node tests
   pdfops.js           every PDF operation (bytes in, bytes out)
+  qpdf.js             add/remove passwords and lossless tidy-up (drives the bundled qpdf WebAssembly)
+  compress.js         shrink JPEG photos (browser codec injected) + the qpdf tidy-up
   ranges.js           page-range parser   zip.js  ZIP writer   exif.js  photo orientation
 js/engine.js          pdf.js drawing, thumbnails, file picking, downloads
 js/app-core.js        shared state, the open document, toasts, drag-and-drop
 js/pages/*.js         one file per tool, each a thin layer over the core
-vendor/               pdf-lib and pdf.js, bundled (see vendor/THIRD-PARTY.md)
+vendor/               pdf-lib, pdf.js and qpdf (WebAssembly), bundled (see vendor/THIRD-PARTY.md)
 tests/                node tests/run.js: core logic, and the privacy checks
 ```
 
@@ -89,5 +101,6 @@ because they call the same functions.
 
 ## Credits
 
-[pdf-lib](https://github.com/Hopding/pdf-lib) (MIT) edits the PDFs and [pdf.js](https://github.com/mozilla/pdf.js)
-(Apache-2.0) draws them. Licenses are in `vendor/`.
+[pdf-lib](https://github.com/Hopding/pdf-lib) (MIT) edits the PDFs, [pdf.js](https://github.com/mozilla/pdf.js)
+(Apache-2.0) draws them, and [qpdf](https://github.com/qpdf/qpdf) (Apache-2.0, compiled to WebAssembly) handles passwords.
+Licenses are in `vendor/`.

@@ -27,7 +27,7 @@
       return await PDFDocument.load(bytes, { updateMetadata: false });
     } catch (err) {
       if (/encrypt/i.test(String(err && err.message))) {
-        throw new UserError('This PDF is password-protected. Remove its password first (for example by opening it and printing to a new PDF), then try again.');
+        throw new UserError('This PDF is password-protected. Open it from “Open a PDF” (you will be asked for the password), or use the Password tool to remove it, then try again.');
       }
       throw new UserError('This PDF could not be read. It may be damaged.');
     }
