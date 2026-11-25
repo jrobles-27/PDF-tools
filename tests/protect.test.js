@@ -176,3 +176,127 @@ test('compress: encrypted input is refused with a clear message', async () => {
   const enc = await qpdf.encrypt(await plainPdf(), { userPassword: 'pw' });
   await throwsAsync(() => Compress.compress(enc, { level: 'lossless', qpdf }), /password/i);
 });
+
+// ---------- scans stored in other ways ----------
+const zlib = require('zlib');
+const noise = n => new Uint8Array(require('crypto').randomBytes(n));
+/** A one-page PDF holding image XObjects given as { data, dict }. The first one is drawn. */
+async function pdfWithRaw(items) {
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([200, 200]);
+  const refs = [];
+  for (const it of items) {
+    const dict = Object.assign({ Type: 'XObject', Subtype: 'Image', BitsPerComponent: 8 }, it.dict);
+    if (it.smaskIndex !== undefined) dict.SMask = refs[it.smaskIndex];
+    refs.push(doc.context.register(doc.context.stream(it.data, dict)));
+  }
+  page.node.newXObject('Im', refs[refs.length - 1]);
+  return new Uint8Array(await doc.save());
+}
+const seen = () => { const calls = []; return { calls, codec: async (data, o) => { calls.push({ data, o }); return { bytes: new Uint8Array(TINY_JPEG), width: o.width, height: o.height }; } }; };
+const run = (src, codec) => Compress.shrinkImages(src, { level: 'balanced', codec });
+
+test('scan: a zipped (lossless) colour picture is decoded to the right pixels and replaced by a JPEG', async () => {
+  const w = 120, h = 100, rgb = noise(w * h * 3);
+  const src = await pdfWithRaw([{ data: new Uint8Array(zlib.deflateSync(rgb)), dict: { Width: w, Height: h, ColorSpace: 'DeviceRGB', Filter: 'FlateDecode' } }]);
+  const s = seen();
+  const r = await run(src, s.codec);
+  eq([r.changed, r.found], [1, 1]);
+  const { data, o } = s.calls[0];
+  eq([o.raw, o.sourceWidth, o.sourceHeight, data.length], [true, w, h, w * h * 4]);
+  ok(data[0] === rgb[0] && data[1] === rgb[1] && data[2] === rgb[2] && data[3] === 255 && data[4] === rgb[3]);
+  const [img] = await images(r.bytes);
+  ok(img.dict.get(PDFName.of('Filter')) === PDFName.of('DCTDecode'));
+});
+
+test('scan: a grey picture is widened to RGB', async () => {
+  const w = 200, h = 200, grey = noise(w * h);
+  const s = seen();
+  await run(await pdfWithRaw([{ data: new Uint8Array(zlib.deflateSync(grey)), dict: { Width: w, Height: h, ColorSpace: 'DeviceGray', Filter: 'FlateDecode' } }]), s.codec);
+  const d = s.calls[0].data;
+  eq([d[4], d[5], d[6]], [grey[1], grey[1], grey[1]]);
+});
+
+test('scan: PNG and TIFF predictors are undone exactly', async () => {
+  const w = 90, h = 130, row = w * 3, rgb = noise(row * h);
+  const png = new Uint8Array((row + 1) * h);
+  for (let y = 0; y < h; y++) {
+    const type = y % 5;
+    png[y * (row + 1)] = type;
+    for (let i = 0; i < row; i++) {
+      const a = i >= 3 ? rgb[y * row + i - 3] : 0, b = y ? rgb[(y - 1) * row + i] : 0, c = y && i >= 3 ? rgb[(y - 1) * row + i - 3] : 0;
+      const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+      const pred = [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][type];
+      png[y * (row + 1) + 1 + i] = (rgb[y * row + i] - pred) & 255;
+    }
+  }
+  const tiff = rgb.slice();
+  for (let y = 0; y < h; y++) for (let i = row - 1; i >= 3; i--) tiff[y * row + i] = (rgb[y * row + i] - rgb[y * row + i - 3]) & 255;
+  for (const [predictor, data] of [[15, png], [2, tiff]]) {
+    const s = seen();
+    const r = await run(await pdfWithRaw([{ data: new Uint8Array(zlib.deflateSync(data)), dict: { Width: w, Height: h, ColorSpace: 'DeviceRGB', Filter: 'FlateDecode', DecodeParms: { Predictor: predictor, Colors: 3, BitsPerComponent: 8, Columns: w } } }]), s.codec);
+    eq(r.changed, 1, 'predictor ' + predictor);
+    const got = s.calls[0].data;
+    for (let px = 0; px < w * h; px++) if (got[px * 4] !== rgb[px * 3] || got[px * 4 + 2] !== rgb[px * 3 + 2]) throw new Error('predictor ' + predictor + ' wrong at pixel ' + px);
+  }
+});
+
+test('scan: a colour-table (indexed) picture gets its real colours', async () => {
+  const w = 220, h = 200, idx = noise(w * h).map(v => v % 3);
+  const table = [255, 0, 0, 0, 255, 0, 0, 0, 255];
+  const doc = await PDFDocument.create();
+  const page = doc.addPage();
+  const ctx = doc.context;
+  const lookup = PDFLib.PDFHexString.of(Buffer.from(table).toString('hex'));
+  const ref = ctx.register(ctx.stream(new Uint8Array(zlib.deflateSync(noise(w * h))), { Type: 'XObject', Subtype: 'Image', Width: w, Height: h, BitsPerComponent: 8, ColorSpace: ['Indexed', 'DeviceRGB', 255, lookup], Filter: 'FlateDecode' }));
+  page.node.newXObject('Im', ref);
+  const s = seen();
+  const r = await run(new Uint8Array(await doc.save()), s.codec);
+  eq(r.changed, 1);
+  ok(s.calls[0].data.length === w * h * 4);
+});
+
+test('scan: a JPEG zipped a second time is unwrapped and shrunk', async () => {
+  const jpg = paddedJpeg(60000);
+  const wrapped = new Uint8Array(zlib.deflateSync(jpg, { level: 0 }));
+  const s = seen();
+  const r = await run(await pdfWithRaw([{ data: wrapped, dict: { Width: 1, Height: 1, ColorSpace: 'DeviceGray', Filter: ['FlateDecode', 'DCTDecode'] } }]), s.codec);
+  eq(r.changed, 1);
+  eq([s.calls[0].o.raw, s.calls[0].data.length], [false, jpg.length]);
+});
+
+test('scan: a transparency mask is never turned into a colour picture', async () => {
+  const s = seen();
+  const r = await run(await pdfWithRaw([
+    { data: paddedJpeg(60000), dict: { Width: 1, Height: 1, ColorSpace: 'DeviceGray', Filter: 'DCTDecode' } },
+    { data: paddedJpeg(50000), dict: { Width: 1, Height: 1, ColorSpace: 'DeviceRGB', Filter: 'DCTDecode' }, smaskIndex: 0 }
+  ]), s.codec);
+  eq([r.found, r.changed, s.calls.length], [1, 1, 1]);
+  const all = await images(r.bytes);
+  const mask = all.find(i => i.dict.get(PDFName.of('ColorSpace')) === PDFName.of('DeviceGray'));
+  ok(mask && mask.contents.length > 60000, 'the mask must be untouched');
+});
+
+test('scan: pictures that are left alone are counted with a reason', async () => {
+  const src = await pdfWithRaw([
+    { data: noise(40000), dict: { Width: 100, Height: 100, ColorSpace: 'DeviceRGB', Filter: 'JPXDecode' } },
+    { data: noise(40000), dict: { Width: 800, Height: 400, ColorSpace: 'DeviceGray', BitsPerComponent: 1, Filter: 'CCITTFaxDecode' } },
+    { data: noise(40000), dict: { Width: 100, Height: 100, ColorSpace: 'DeviceCMYK', Filter: 'DCTDecode' } }
+  ]);
+  const s = seen();
+  const r = await run(src, s.codec);
+  eq([r.changed, r.found, s.calls.length], [0, 3, 0]);
+  eq(r.skipped, { jpx: 1, mono: 1, colour: 1 });
+  ok(r.bytes === src);
+  ok(/JPEG 2000/.test(Compress.explainSkipped(r.skipped)) && /black and white/.test(Compress.explainSkipped(r.skipped)));
+  eq(Compress.explainSkipped({}), '');
+});
+
+test('scan: a lossless picture is only converted when the saving is large', async () => {
+  const w = 120, h = 100;
+  const data = new Uint8Array(zlib.deflateSync(noise(w * h * 3)));
+  const src = await pdfWithRaw([{ data, dict: { Width: w, Height: h, ColorSpace: 'DeviceRGB', Filter: 'FlateDecode' } }]);
+  const r = await run(src, async (d, o) => ({ bytes: noise(Math.floor(data.length * 0.8)), width: o.width, height: o.height }));
+  eq(r.changed, 0);
+  eq(r.skipped, { kept: 1 });
+});

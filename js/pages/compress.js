@@ -7,8 +7,8 @@
 
   const LEVELS = [
     ['lossless', 'Lossless', 'Nothing visible changes. Packs the file more tightly. Often only a small saving.'],
-    ['balanced', 'Balanced', 'Photos are shrunk to at most 2000 pixels on the long side at good quality. Fine for screens and most printing.'],
-    ['strong', 'Smallest', 'Photos are shrunk to at most 1400 pixels at lower quality. Best for email; fine detail will soften.']
+    ['balanced', 'Balanced', 'Scans and photos are shrunk to at most 2000 pixels on the long side at good quality. Fine for screens and most printing.'],
+    ['strong', 'Smallest', 'Scans and photos are shrunk to at most 1400 pixels at lower quality. Best for email and upload limits; small print will soften, so check it.']
   ];
 
   App.on('doc', function () { const s = S(); s.result = null; s.running = false; });
@@ -47,7 +47,7 @@
       return card('Already compact', 'This PDF could not be made smaller at this setting.',
         '<p class="hint" style="margin:0">' + (S().resultLevel === 'lossless'
           ? 'It is already packed well. Try Balanced or Smallest to also shrink its pictures' + (r.images ? '.' : ' (there are no pictures in this file, so most of its size is text and fonts).')
-          : r.images ? 'Its pictures are already small or in a form this tool leaves alone, so nothing was changed.' : 'There are no pictures in this file, so there is nothing big to shrink.') + ' Nothing was changed, and your file is exactly as you gave it.</p>');
+          : r.images ? 'Its pictures could not usefully be made smaller. ' + esc(Compress.explainSkipped(r.skipped)) : 'There are no pictures in this file, so there is nothing big to shrink.') + ' Nothing was changed, and your file is exactly as you gave it.</p>');
     }
     const pct = Math.max(1, Math.round((1 - r.after / r.before) * 100));
     const pics = r.images ? (r.shrunk ? E.plural(r.shrunk, 'picture') + ' of ' + r.images + ' shrunk' : 'no pictures changed') : 'no pictures in this file';
@@ -55,7 +55,7 @@
       '<div class="stat-row"><div><b>' + E.fmtSize(r.before) + '</b>before</div><div><b>' + E.fmtSize(r.after) + '</b>after</div><div><b>' + pct + '%</b>saved</div><div><b>' + esc(pics) + '</b>pictures</div></div>' +
       '<div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn primary" data-act="compress.dl">' + I('download') + ' Download the smaller PDF</button>' +
       '<button class="btn" data-act="compress.keep">' + I('pen') + ' Keep editing this version</button></div>' +
-      (S().resultLevel === 'lossless' ? '' : '<p class="hint">Pictures that would not shrink clearly are left exactly as they were. Check the result before replacing the original.</p>'));
+      (S().resultLevel === 'lossless' ? '' : '<p class="hint">' + esc(Compress.explainSkipped(r.skipped)) + (S().resultLevel === 'balanced' && r.shrunk ? ' Need it smaller? Try Smallest.' : '') + ' Check the result before replacing the original.</p>'));
   }
 
   function render() {
@@ -66,7 +66,7 @@
       '<p class="hint" style="margin-top:10px"><b>' + esc(LEVELS.filter(l => l[0] === s.level)[0][1]) + ':</b> ' + esc(LEVELS.filter(l => l[0] === s.level)[0][2]) + '</p>' +
       '<div class="row wrap" style="gap:8px;margin-top:14px"><button class="btn primary" data-act="compress.run">' + I('shrink') + ' Compress</button>' +
       '<span class="hint" style="margin:0">Currently ' + E.fmtSize(d.size) + '.</span></div>');
-    const honest = note('<b>What this can and cannot do.</b> It shrinks pictures stored as JPEG (most photos and scans) and packs the rest of the file. Text, fonts and pictures in other formats are kept as they are, so a PDF that is mostly text may not shrink much. Everything happens in this tab; nothing is uploaded.', 'info');
+    const honest = note('<b>What this can and cannot do.</b> It shrinks scans and colour or grey pictures (saving them as JPEG) and packs the rest of the file. Text and fonts are kept as they are, so a PDF that is mostly text may not shrink much. Black-and-white, JPEG 2000 and print-colour pictures are left alone. Everything happens in this tab; nothing is uploaded.', 'info');
     return choose + resultCard() + honest;
   }
 

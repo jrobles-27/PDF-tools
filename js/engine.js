@@ -184,12 +184,13 @@
     return qpdfApi;
   }
 
-  /** Shrinks one JPEG picture with the browser's own decoder and encoder. Returns null to leave the picture alone. */
-  async function jpegCodec(bytes, o) {
-    const turned = Exif.orientation(bytes) !== 1;
+  /** Shrinks one picture (a JPEG file, or raw RGBA pixels) with the browser's own decoder and encoder. Returns null to leave it alone. */
+  async function jpegCodec(data, o) {
     let bmp;
-    try { bmp = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }), turned ? { imageOrientation: 'none' } : undefined); }
-    catch (e) { return null; }
+    try {
+      if (o.raw) bmp = await createImageBitmap(new ImageData(new Uint8ClampedArray(data.buffer, data.byteOffset, data.length), o.sourceWidth, o.sourceHeight));
+      else bmp = await createImageBitmap(new Blob([data], { type: 'image/jpeg' }), Exif.orientation(data) !== 1 ? { imageOrientation: 'none' } : undefined);
+    } catch (e) { return null; }
     try {
       if (bmp.width !== o.sourceWidth || bmp.height !== o.sourceHeight) return null;     // not the picture the PDF describes
       const canvas = document.createElement('canvas');

@@ -40,15 +40,15 @@ That is about visiting the page, not about your files. Downloaded files land in 
 | **Crop pages** | Trim margins on all or chosen pages, with a live preview. |
 | **Fill forms** | Fill text fields, checkboxes, drop-downs and choices in fillable PDF forms, optionally making answers permanent. |
 | **Properties** | Edit title, author, dates and more, or strip all metadata before sharing. |
-| **Compress** | Make a PDF smaller: a lossless tidy-up, or also shrink its JPEG photos (Balanced or Smallest). Never returns a larger file. |
+| **Compress** | Make a PDF smaller: a lossless tidy-up, or also shrink its scans and pictures (Balanced or Smallest). Never returns a larger file. |
 | **Password** | Lock a PDF with a password (AES-256), optionally asking readers not to print, copy or edit; or save an unlocked copy of a PDF you know the password to. A locked PDF also asks for its password when you open it. |
 | **PDF to images** | PNG (lossless), JPEG or WebP at 72 to 600 dpi, as a ZIP. |
 | **Images to PDF** | One picture per page; JPEG and PNG are placed exactly as they are, sideways phone photos are turned upright. |
 | **Extract text** | All the text in a PDF, page by page, as a `.txt` file. |
 
 Pages are copied, never re-rendered or re-compressed, so trimming, combining and splitting lose no quality. The one
-exception is **Compress**, which says so: its Balanced and Smallest settings shrink JPEG photos (lossy), and a photo is
-replaced only if the result is clearly smaller. Its Lossless setting changes nothing visible.
+exception is **Compress**, which says so: its Balanced and Smallest settings shrink scans and pictures (lossy), and a
+picture is replaced only if the result is clearly smaller. Its Lossless setting changes nothing visible.
 
 ## Honest limits
 
@@ -59,8 +59,10 @@ replaced only if the result is clearly smaller. Its Lossless setting changes not
   password guessing or cracking: forgotten passwords cannot be recovered. The print/copy/edit limits are a courtesy that
   many programs ignore; the password to open the file (AES-256) is the real protection. A protected PDF has to be
   unlocked before it can be edited.
-- **Compress** only shrinks pictures stored as JPEG (most photos and scans) and packs the rest. Text, fonts, and pictures
-  in other formats stay as they are, so a mostly-text PDF may barely shrink. Check the result before replacing the original.
+- **Compress** shrinks colour and grey pictures, including scanned pages, whether stored as JPEG or losslessly (they are
+  saved as JPEG). Text and fonts stay as they are, so a mostly-text PDF may barely shrink. **Black-and-white scans,
+  JPEG 2000 and print-colour (CMYK) pictures are left alone**; the result says what was skipped and why. Check the result
+  before replacing the original.
 - There is **no OCR**: scanned pages have no text to extract.
 - Added text uses a standard font, so Western European letters work but other scripts do not.
 - Everything is held in memory, so very large PDFs can be slow or fail on small computers.
@@ -87,7 +89,7 @@ css/app.css           styles for the tools
 js/core/              pure logic, no DOM, runs in the browser and in Node tests
   pdfops.js           every PDF operation (bytes in, bytes out)
   qpdf.js             add/remove passwords and lossless tidy-up (drives the bundled qpdf WebAssembly)
-  compress.js         shrink JPEG photos (browser codec injected) + the qpdf tidy-up
+  compress.js         shrink scans and pictures (browser codec injected) + the qpdf tidy-up
   ranges.js           page-range parser   zip.js  ZIP writer   exif.js  photo orientation
 js/engine.js          pdf.js drawing, thumbnails, file picking, downloads
 js/app-core.js        shared state, the open document, toasts, drag-and-drop
